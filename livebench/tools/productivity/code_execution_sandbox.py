@@ -2,13 +2,11 @@
 Code execution tool with provider-agnostic sandboxing.
 
 Default behavior:
-- Try BoxLite first (when CODE_SANDBOX_PROVIDER=auto)
-- Fall back to E2B if BoxLite is unavailable
+- Use E2B by default (when CODE_SANDBOX_PROVIDER is unset)
 
 Supported providers via CODE_SANDBOX_PROVIDER:
-- auto (default): boxlite -> e2b fallback
-- boxlite: BoxLite only
-- e2b: E2B only
+- e2b (default): E2B backend
+- boxlite: BoxLite backend (experimental local virtualization)
 """
 
 from __future__ import annotations
@@ -41,7 +39,7 @@ _DEFAULT_ARTIFACT_DIRS = ["/tmp", "/home/user", "/home/user/artifacts"]
 _DEFAULT_ARTIFACT_EXTENSIONS = [
     ".txt", ".docx", ".xlsx", ".csv", ".pdf", ".png", ".jpg", ".jpeg", ".json", ".md", ".pptx"
 ]
-_VALID_PROVIDERS = {"auto", "boxlite", "e2b"}
+_VALID_PROVIDERS = {"boxlite", "e2b"}
 
 
 @dataclass
@@ -445,7 +443,7 @@ class SessionSandbox:
     def __init__(self):
         self.backend: Optional[SandboxBackend] = None
         self.provider: Optional[str] = None
-        self.provider_requested: str = os.getenv("CODE_SANDBOX_PROVIDER", "auto").strip().lower() or "auto"
+        self.provider_requested: str = os.getenv("CODE_SANDBOX_PROVIDER", "e2b").strip().lower() or "e2b"
         self.provider_diagnostics: List[str] = []
 
         # Backward-compatible attributes
@@ -471,19 +469,14 @@ class SessionSandbox:
 
     @staticmethod
     def _get_requested_provider() -> str:
-        provider = os.getenv("CODE_SANDBOX_PROVIDER", "auto").strip().lower()
+        provider = os.getenv("CODE_SANDBOX_PROVIDER", "e2b").strip().lower() or "e2b"
         if provider not in _VALID_PROVIDERS:
             raise ValueError(
                 f"Invalid CODE_SANDBOX_PROVIDER='{provider}'. "
-                "Valid options: auto, boxlite, e2b"
+                "Valid options: boxlite, e2b. "
+                "Migration: replace 'auto' with 'e2b' (default) or 'boxlite'."
             )
         return provider
-
-    def _candidate_providers(self) -> List[str]:
-        requested = self._get_requested_provider()
-        if requested == "auto":
-            return ["boxlite", "e2b"]
-        return [requested]
 
     def _create_backend(self, provider: str) -> SandboxBackend:
         if provider == "boxlite":
@@ -509,18 +502,17 @@ class SessionSandbox:
             return self.backend
 
         errors: List[str] = []
-
-        for candidate in self._candidate_providers():
-            try:
-                backend = self._create_backend(candidate)
-                backend.ensure_started(timeout=timeout)
-                self.backend = backend
-                self.provider = candidate
-                self.provider_diagnostics = errors
-                self._sync_compat_attrs()
-                return backend
-            except Exception as exc:
-                errors.append(f"{candidate}: {exc}")
+        candidate = self.provider_requested
+        try:
+            backend = self._create_backend(candidate)
+            backend.ensure_started(timeout=timeout)
+            self.backend = backend
+            self.provider = candidate
+            self.provider_diagnostics = errors
+            self._sync_compat_attrs()
+            return backend
+        except Exception as exc:
+            errors.append(f"{candidate}: {exc}")
 
         self.provider_diagnostics = errors
         diagnostics = "; ".join(errors) if errors else "no diagnostics available"
@@ -589,7 +581,7 @@ def execute_code(code: str, language: str = "python") -> Dict[str, Any]:
     Execute code in a persistent sandbox with artifact download support.
 
     Features:
-    - Provider auto-selection (BoxLite-first, E2B fallback)
+    - Provider selection via CODE_SANDBOX_PROVIDER (e2b default, boxlite opt-in)
     - Persistent sandbox per session (files persist across calls)
     - Python execution support
     - Artifact auto-download via ARTIFACT_PATH markers

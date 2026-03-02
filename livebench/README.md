@@ -50,7 +50,7 @@ livebench/
 - Python 3.8+
 - Conda environment (recommended: use `osw` env)
 - OpenAI-compatible API access
-- Code sandbox backend (`boxlite[sync]` recommended, `e2b-code-interpreter` fallback)
+- Code sandbox backend (`e2b-code-interpreter` default, `boxlite[sync]` experimental opt-in)
 - AI-Trader (for trading functionality)
 
 ### Setup
@@ -73,10 +73,10 @@ OPENAI_API_BASE=<your-openai-compatible-api-endpoint>
 OPENAI_API_KEY=<your-api-key>
 
 # Code sandbox backend for execute_code_sandbox
-# auto (default): boxlite first, then e2b fallback
-CODE_SANDBOX_PROVIDER=auto
+# e2b (default) or boxlite (experimental local backend)
+CODE_SANDBOX_PROVIDER=e2b
 
-# Required only when provider resolves to e2b
+# Required when provider is e2b (default)
 E2B_API_KEY=<your-e2b-api-key>
 
 # MCP Service Ports
@@ -330,10 +330,11 @@ LIVEBENCH_HTTP_PORT=8011 python tools/start_live_services.py
 - Adjust estimation in `LiveAgent._estimate_and_track_tokens()`
 
 ### Sandbox Backend Issues
-- If `CODE_SANDBOX_PROVIDER=auto`, LiveBench tries `boxlite` first, then `e2b`.
+- Supported providers are `e2b` (default) and `boxlite` (experimental).
+- Install E2B backend: `pip install e2b-code-interpreter`
 - Install BoxLite sync backend: `pip install "boxlite[sync]>=0.6.0"`
-- Install E2B fallback: `pip install e2b-code-interpreter`
-- `E2B_API_KEY` is only required when provider resolves to `e2b`.
+- `E2B_API_KEY` is required when provider is `e2b` (default).
+- If `CODE_SANDBOX_PROVIDER=auto`, replace it with `e2b` or `boxlite`.
 - If `SyncCodeBox` import fails, reinstall `boxlite[sync]`.
 
 ### Task Loading Errors

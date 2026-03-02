@@ -229,12 +229,12 @@ cp .env.example .env
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `OPENAI_API_KEY` | **Required** | OpenAI API key — used for the GPT-4o agent and LLM-based task evaluation |
-| `CODE_SANDBOX_PROVIDER` | Optional | `"auto"` (default), `"boxlite"`, or `"e2b"` — selects code sandbox backend for `execute_code_sandbox` |
-| `E2B_API_KEY` | Conditional | [E2B](https://e2b.dev) API key — required only when sandbox provider resolves to `"e2b"` |
+| `CODE_SANDBOX_PROVIDER` | Optional | `"e2b"` (default) or `"boxlite"` — selects code sandbox backend for `execute_code_sandbox` |
+| `E2B_API_KEY` | Conditional | [E2B](https://e2b.dev) API key — required when sandbox provider is `"e2b"` (default) |
 | `WEB_SEARCH_API_KEY` | Optional | API key for web search (Tavily default, or Jina AI) — needed if the agent uses `search_web` |
 | `WEB_SEARCH_PROVIDER` | Optional | `"tavily"` (default) or `"jina"` — selects the search provider |
 
-> **Note**: `OPENAI_API_KEY` is required. Code sandbox defaults to BoxLite sync mode (`boxlite[sync]`, no API key), with automatic E2B fallback when available.
+> **Note**: `OPENAI_API_KEY` is required. Code sandbox defaults to E2B (`e2b-code-interpreter` + `E2B_API_KEY`). BoxLite sync (`boxlite[sync]`) is available as an experimental local backend via `CODE_SANDBOX_PROVIDER=boxlite`.
 
 ---
 
@@ -367,7 +367,7 @@ The agent has 8 tools available in standalone simulation mode:
 | `get_status()` | Check balance, costs, survival tier |
 | `search_web(query, max_results)` | Web search via Tavily or Jina AI |
 | `create_file(filename, content, file_type)` | Create .txt, .xlsx, .docx, .pdf documents |
-| `execute_code_sandbox(code, language)` | Run Python in isolated sandbox (`boxlite` default, `e2b` fallback) |
+| `execute_code_sandbox(code, language)` | Run Python in isolated sandbox (`e2b` default, optional `boxlite`) |
 | `create_video(slides_json, output_filename)` | Generate MP4 from text/image slides |
 
 ---
@@ -502,13 +502,16 @@ pip install -r requirements.txt
 ```
 
 **Sandbox backend unavailable**
-→ Install `boxlite[sync]` (recommended) or `e2b-code-interpreter`, then set `CODE_SANDBOX_PROVIDER` to `auto`, `boxlite`, or `e2b`.
+→ Install `e2b-code-interpreter` (default backend) or `boxlite[sync]` (experimental local backend), then set `CODE_SANDBOX_PROVIDER` to `e2b` or `boxlite`.
+
+**`CODE_SANDBOX_PROVIDER=auto` no longer supported**
+→ Replace `auto` with `e2b` (default) or `boxlite`.
 
 **`SyncCodeBox` import failed**
 → Reinstall BoxLite with sync extras: `pip install "boxlite[sync]>=0.6.0"`.
 
 **E2B sandbox rate limit (429)**
-→ Applies only when using `CODE_SANDBOX_PROVIDER=e2b` (or `auto` when it falls back to E2B). Wait ~1 min for stale sandboxes to expire.
+→ Applies when using `CODE_SANDBOX_PROVIDER=e2b` (default). Wait ~1 min for stale sandboxes to expire.
 
 **ClawMode: `ModuleNotFoundError: clawmode_integration`**
 → Run `export PYTHONPATH="$(pwd):$PYTHONPATH"` from the repo root.

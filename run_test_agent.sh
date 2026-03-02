@@ -78,14 +78,14 @@ if [ -z "$WEB_SEARCH_API_KEY" ]; then
 fi
 echo "✓ WEB_SEARCH_API_KEY set"
 
-# Resolve sandbox provider (auto -> boxlite preferred, then e2b fallback)
-SANDBOX_PROVIDER_REQUESTED=${CODE_SANDBOX_PROVIDER:-auto}
+# Resolve sandbox provider (explicit e2b default, optional boxlite)
+SANDBOX_PROVIDER_REQUESTED=${CODE_SANDBOX_PROVIDER:-e2b}
 SANDBOX_PROVIDER_RESOLVED=$(python - <<'PY'
 import os
 import importlib.util
 
-requested = os.getenv("CODE_SANDBOX_PROVIDER", "auto").strip().lower()
-valid = {"auto", "boxlite", "e2b"}
+requested = os.getenv("CODE_SANDBOX_PROVIDER", "e2b").strip().lower() or "e2b"
+valid = {"boxlite", "e2b"}
 if requested not in valid:
     print("invalid")
     raise SystemExit(0)
@@ -101,21 +101,15 @@ has_e2b = importlib.util.find_spec("e2b_code_interpreter") is not None
 
 if requested == "boxlite":
     print("boxlite" if has_boxlite else "boxlite-missing")
-elif requested == "e2b":
-    print("e2b" if has_e2b else "e2b-missing")
 else:
-    if has_boxlite:
-        print("boxlite")
-    elif has_e2b:
-        print("e2b")
-    else:
-        print("none")
+    print("e2b" if has_e2b else "e2b-missing")
 PY
 )
 
 if [ "$SANDBOX_PROVIDER_RESOLVED" = "invalid" ]; then
     echo "❌ Invalid CODE_SANDBOX_PROVIDER: ${SANDBOX_PROVIDER_REQUESTED}"
-    echo "   Valid options: auto, boxlite, e2b"
+    echo "   Valid options: boxlite, e2b"
+    echo "   Migration: replace 'auto' with 'e2b' (default) or 'boxlite'"
     exit 1
 fi
 
@@ -129,13 +123,6 @@ fi
 if [ "$SANDBOX_PROVIDER_RESOLVED" = "e2b-missing" ]; then
     echo "❌ CODE_SANDBOX_PROVIDER=e2b but e2b-code-interpreter is not installed"
     echo "   Install with: pip install e2b-code-interpreter"
-    exit 1
-fi
-
-if [ "$SANDBOX_PROVIDER_RESOLVED" = "none" ]; then
-    echo "❌ No sandbox backend available"
-    echo "   Install BoxLite sync (recommended): pip install \"boxlite[sync]>=0.6.0\""
-    echo "   Or install E2B fallback: pip install e2b-code-interpreter"
     exit 1
 fi
 
